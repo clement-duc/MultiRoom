@@ -1,0 +1,15 @@
+*** Liste des salles (salle, salleCode),
+*** suivie par une ligne débutant par "---",
+*** suivie par la liste des participants (nom, nomPw, nomFull),
+*** et tout ça SANS ACCENTS;
+*** copier les lignes ci-dessous dans la zone des listes
+Bloutte, BloutteRoom
+Salon, SalonRoom
+Cuisine, CuisineRoom
+Salle a manger, SalleAMangerRoom
+---
+clement, clementpw, Clement Ducharme
+micheline, michelinepw, Micheline Plamondon
+emilie, emiliepw, Emilie Ducharme
+bernard, bernardpw, Bernard Ducharme
+rosalie, rosaliepw, Rosalie Ducharme

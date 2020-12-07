@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>MultiRoom-2020/11/29</title>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+
+<script>
+
+//	Cette version utilise deux vidéos :
+//	- la première est commune à tous les participants, invisible, et conserve dans "email" la pièce dans laquelle chaque participant se trouve
+//	- la seconde est visible et fonctionne uniquement avec les participants à une pièce donnée
+//	La fenêtre-paramètre indique tous les participants par pièce
+//	(la pièce Aucune est assignée aux participants n'étant dans aucune pièce)
+//	Les avantages de cette approche sont :
+//	- De minimiser le travail fait par php sur serveur (seulement fournir les participants et pièces possibles, à l'initialisation)
+//	  et avoir Jitsi faire une grande partie du travail plutôt que d'avoir à la programmer.
+//	- De rendre possible un "maître de cérémonie" pouvant s'adresser à toutes les pièces en même temps (vis le haut-parleur du vidéo commun)
+
+//	Cette version a été abandonnée suite aux problèmes suivants :
+//	- Le premier participant à une pièce spécifie automatiquement un mot de passe (toujours le même).
+//	  Cependant, les participants suivants ne peuvent pas l'entrer (problème encore existant selon internet).
+//	- Les événements ne semblent pas toujours générées, au moins lorsque fonctionnant à partir de la version sur serveur.
+//	  Selon internet, ça peut être solutionné en introduisant un délai avant de définir les "listeners"; je n'ai pas réussi à la faire fonctionner.
+//	- En fonctionnant avec 2 vidéos, à partir du fichier sur serveur, il ne semble pas possible d'activer le micro et la caméra pour la 2e vidéo.
+//	- J'ai voulu "jouer" avec les vidéos; la documentation parle de "devices" mais je n'ai pas trouvé sur internet quelles valeurs ils pouvaient prendre.
+
+//	CD 2020/11/29
+
+// Début du javascript ---------------------------------------------------------
+	var apicom;
+	var api;
+	var nomPart = "";
+	var pw = "";
+	var piece = "";
+	var objRec;
+
+	var avail_h = 0;
+	var avail_w = 0;
+	var videotop_h = 20;
+	var videobot_h = 0;
+	var videobot_w = 0;
+
+function init() {
+//	Initialization
+
+//	Calcul des différentes hauteurs et largeurs
+	avail_h = screen.availHeight;
+	avail_w = screen.availWidth;
+	videobot_h = avail_h - videotop_h;
+	videobot_w = avail_w;
+	document.getElementById('fen_front').style.height = avail_h + "px";
+	document.getElementById('fen_front').style.width = avail_w + "px";
+	document.getElementById('fen_parm').style.height = avail_h + "px";
+	document.getElementById('fen_parm').style.width = avail_w + "px";
+	document.getElementById('fen_meet').style.height = avail_h + "px";
+	document.getElementById('fen_meet').style.width = avail_w + "px";
+	document.getElementById('videotop').style.height = videotop_h + "px";
+	document.getElementById('videotop').style.width = avail_w + "px";
+	document.getElementById('videobot').style.height = videobot_h + "px";
+	document.getElementById('videobot').style.width = avail_w + "px";
+	document.getElementById('fen_commun').style.height = avail_h + "px";
+	document.getElementById('fen_commun').style.width = avail_w + "px";
+}
+
+function entrer1() {
+//	Vérifications pour entrer dans MultiRoom
+
+//	Initialisation
+	var err = 0;
+	document.getElementById('errmsg').innerHTML = "";
+	piece = "Aucune";
+	piece_new();
+
+//	Vérifier si la personne a le droit d'entrer_piece_commune
+	entrer_valider(err);
+	if ( err > 0 ) { return; }
+
+//	S'enregistrer dans la pièce commune (et cachée)
+	entrer_piece_commune();
+}
+
+function entrer2() {
+//	Vérifications pour entrer dans MultiRoom
+
+//	Enregistrer la piece
+	apicom.executeCommand('email', piece);
+	var arr = apicom.getParticipantsInfo();
+
+//	Aller à la fenêtre des paramètres
+	gotoParm();
+}
+
+function entrer_valider(err) {
+//	Vérifications pour entrer dans MultiRoom
+
+//	Obtenir le nom du participant
+	nomPart = document.getElementById('nomPart').value;
+//	Temporaire :
+		var a = nomPart.toLowerCase(nomPart);
+		if ( a != 'bernard' && a != 'clement' ) { err = 1; }
+
+//	Obtenir et vérifier le mot de passe
+	pw = document.getElementById('pw').value;
+//	Temporaire :
+//		if ( pw != '' ) { err = err + 2; }
+
+//	Accéder au serveur en fournissant le nom du participant et le mot de passe;
+//	on obtient au retour :
+//	- le code d'erreur et, si pas d'erreur :
+//	- la liste des participants possibles
+//	- la liste des pièces possibles
+//	Temporaire :
+		// strSend = JSON.stringify(objSend);
+		// objRec = JSON.parse(strRec);
+		var strRec = '{"listeParts":["clement","bernard"],"listePieces":["Bloutte","Piece2","Piece3","Aucune"]}'
+		objRec = JSON.parse(strRec);
+
+//	Transférer les pièces dans le "drop-down" des paramètres
+	for (const val of objRec.listePieces) {
+		var option = document.createElement("option");
+		option.text = val;
+		document.getElementById('join_piece_parm').appendChild(option);
+	}
+
+//	Indiquer le message d'erreur, s'il y a lieu
+	if ( err == 1 ) {
+		document.getElementById('errmsg').innerHTML = "Nom incorrect";
+	} else if ( err == 2 ) {
+		document.getElementById('errmsg').innerHTML = "Mot de passe incorrect";
+	} else if ( err == 3 ) {
+		document.getElementById('errmsg').innerHTML = "Nom et mot de passe incorrects";
+	}
+}
+
+function entrer_piece_commune() {
+//	Ouvrir la pièce commune. Normalemennt, le "superviseur" aura démarré la pièce commune,
+//	 et désactivé la caméra et le son par défaut pour tous les futurs participants
+
+	const domain = 'meet.jit.si';
+	const options = { roomName: "commun",
+		userInfo: {displayName: nomPart},
+		parentNode: document.getElementById("commun"),
+		width: 100, height: 100
+	};
+	apicom = new JitsiMeetExternalAPI(domain, options);
+
+//	Ajouter les "listeners" (events)
+	setTimeout(set_delay_com, 3000);
+}
+
+function set_delay_com() {
+//	Spécifier les listeners après un délai
+//	apicom.addEventListener('videoConferenceJoined', listePartByPiece);
+	apicom.addEventListener('videoConferenceLeft', listePartByPiece);
+	apicom.addEventListener('emailChange', listePartByPiece);
+
+//	Changer le bouton "Valider" pour le bouton "Entrer"
+	document.getElementById("entrer1").style.display = "none";
+	document.getElementById("entrer2").style.display = "block";
+}
+
+function piece_new() {
+//	Refléter le changement de pièce ainsi que l'activation du switching entre les deux fenêtres (paramètres et vidéo)
+
+	if ( piece == "Aucune" ) {
+		document.getElementById('gotoVideo').disabled = true;
+		document.getElementById('piece').innerHTML = "Vous n'êtes présentement dans aucune pièce";
+	} else {
+		document.getElementById('gotoVideo').disabled = false;
+		document.getElementById('piece').innerHTML = "Vous êtes présentement dans la pièce : " + piece;
+	}
+}
+
+function join_piece_bouton() {
+//	Joindre une pièce
+
+//	Si déjà dans une piece, on commence par la fermer
+	if ( piece != 'Aucune' ) {
+		leave_piece_commun();
+	}
+
+//	Obtenir le nom de la pièce à partir d'une liste déroulante et l'enregistrer dans le vidéo-commun
+	piece = document.getElementById('join_piece_parm').value;   // ajouter la liste déroulante
+	piece_new();
+	document.getElementById('join_piece_parm').value = "";
+	apicom.executeCommand('email', piece);
+
+//	Joindre
+	const domain = 'meet.jit.si';
+	const options = { roomName: piece,
+		userInfo: {displayName: nomPart},
+		parentNode: document.getElementById("meet"),
+		width: videobot_w, height: videobot_h
+	};
+	api = new JitsiMeetExternalAPI(domain, options);
+
+//	Ajouter les "listeners" (events)
+	setTimeout(set_delay, 3000);
+
+	
+//	Aller à la fenêtre vidéo
+	gotoVideo();
+}
+
+function set_delay() {
+//	Spécifier les listeners après un délai
+//	api.addEventListener('videoConferenceJoined', set_password);
+	api.addEventListener('videoConferenceLeft', joint_piece_onLeave);
+//	api.addEventListener('passwordRequired', set_password);
+}
+
+function set_password() {
+//	Spécifier le password
+	api.executeCommand('password', pw);
+}
+
+function joint_piece_onLeave() {
+//	Quitter une pièce en "raccrochant" dans la pièce
+
+//	Appel à la routine leave commune
+	leave_piece_commun();
+	
+//	Aller à la fenêtre des paramètres
+	gotoParm();
+}
+
+function leave_piece_bouton() {
+//	Quitter une pièce (bouton paramètre)
+
+//	Appel à la routine leave commune
+	leave_piece_commun();
+}
+
+function leave_piece_commun() {
+//	Quitter une pièce (bouton paramètre ou en raccrochant)
+
+//	Effacer api
+	api.dispose();
+
+//	Mettre la piece à "Aucune" et l'enregistrer dans le vidéo-commun
+	piece = "Aucune";
+	piece_new();
+	apicom.executeCommand('email', piece);
+}
+
+function gotoParm() {
+//	Aller à la fenêtre des paramètres
+	document.getElementById("fen_front").style.display = "none";
+	document.getElementById("fen_parm").style.display = "block";
+	document.getElementById("fen_meet").style.display = "none";
+
+//	S'ajuster en haut à gauche
+	window.scrollTo(0, 0);
+}
+
+function gotoVideo() {
+//	Aller à la fenêtre vidéo
+	document.getElementById("fen_parm").style.display = "none";
+	document.getElementById("fen_meet").style.display = "block";
+
+//	S'ajuster en haut à gauche
+	window.scrollTo(0, 0);
+}
+
+function leave_multiroom_bouton() {
+//	Quitter MultiRoom
+
+//	Demander confirmation ???????????????????????????????????????????????????????
+
+//	Si déjà dans une piece, on commence par la fermer
+	if ( piece != 'Aucune' ) {
+		leave_piece_commun();
+	}
+
+//	Fermer la pièce commune (effacer apicom)
+	apicom.dispose();
+//	Faire un "reload" de MultiRoom
+	window.location.reload();
+}
+
+function listePartByPiece() {
+//	Générer la liste des participants par pièce
+
+//	Extraire l'information de la pièce commune
+	var arr = apicom.getParticipantsInfo();
+	
+//	Créer le vecteur de tri
+	var srt = [];
+	var i = 0;
+	var a = "";
+	for ( i=0; i<arr.length; i++ ) {
+		a = arr[i].email;
+		srt[i] = objRec.listePieces.indexOf(a);
+		a = arr[i].displayName;
+		srt[i] = srt[i] * 1000 + objRec.listeParts.indexOf(a);
+	}
+
+//	Faire le tri et générer le rapport
+	srt.sort();
+
+//	Générer le rapport dans un string
+	var pp = -1;
+	var p = -1;
+	var a = "LISTE DES PARTICIPANTS (" + arr.length + ") PAR PIÈCE";
+	var a = a + "<br>--------------------------------------------------------";
+	for ( i=0; i<arr.length; i++ ) {
+		pp = p;
+		p = Math.floor( srt[i] / 1000 );
+		if ( p != pp ) {
+			a = a + "<br>" + "Pièce " + objRec.listePieces[p];
+		}
+		a = a + "<br>---> " + objRec.listeParts[ srt[i] - 1000*p ];
+	}
+
+//	Mettre le rapport à l'écran
+	document.getElementById('listePartByPiece').innerHTML = a;	
+}
+
+function test() {
+	alert("Fonction vide");
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+
+	<div id='fen_front'><!-- Fenêtre d'entrée dans MultiRoom -->
+		<p>Nom du participant (sans accents) : <input id='nomPart' value='' style='width:250px'/></p><p/>
+		<p>Mot de passe (sans accents) : <input id='pw' value='' style='width:250px'/></p><p/>
+		<p id='errmsg'></p>
+		<input id='entrer1' type='button' value='Valider' onclick='entrer1()' /><p/>
+		<input id='entrer2' type='button' value='Entrer' onclick='entrer2()' style='display:none' /><p/>
+		<input type='button' value='Test' onclick='testPrep()' /><p/>
+	</div>
+
+	<div id='fen_parm' style='display:none'><!-- Fenêtre des paramètres -->
+		<input id='gotoVideo' type='button' value='Aller à la fenêtre vidéo' onclick='gotoVideo()' />
+		<p id='piece'></p>
+		<input type='button' value='Joindre la pièce : ' onclick='join_piece_bouton()' />
+			<select id='join_piece_parm' style='width:250px' ></select><p/>
+		<input type='button' value='Quitter la pièce' onclick='leave_piece_bouton()' /><p/>
+		<input type='button' value='Quitter MultiRoom' onclick='leave_multiroom_bouton()' /><p/>
+		<div id='listePartByPiece'></div>
+	</div>
+
+	<div id='fen_meet' style='display:none'><!-- Fenêtre vidéo -->
+		<div id='videotop'>
+			<input id='gotoParm' type='button' value='Aller à la fenêtre des paramètres' onclick='gotoParm()' />
+		</div>
+		<div id='videobot'>
+			<div id='meet' />
+		</div>
+	</div>
+
+	<div id='fen_commun' style='display:none'><!-- Fenêtre du vidéo commun (sans micro sans caméra) -->
+		<div id='commun' />
+	</div>
+	
+</body>
+</html>

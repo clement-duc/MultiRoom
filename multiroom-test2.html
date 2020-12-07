@@ -1,0 +1,466 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>MultiRoom-2020/12/03</title>
+<style>
+.td { border: 1px solid black; padding: 10px; vertical-align: top; }
+</style>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+
+<script>
+/*
+	Cette version utilise du php sur serveur pour gérer les salles et les participants. Reste à faire :
+	- Transférer le plus possible de javascript dans un fichier .js
+	- Transférer la commande "start" du superviseur dans une page différente et gérer l'entrée des données (listes dans un fichier séparé?)
+	- Modifier la structure des données
+	- Remplacer le mot de passe par famille par des mots de passe par participant
+	- Ajouter la validation (php) du nom du participant et de son mot de passe, à l'enregistrement
+	- Utiliser le code de salle (plutôt que le nom de la salle) pour ouvrir jit.si
+	- Pour quitter MultiRoom, demander une confirmation
+	- Si le participant quitte MultiRoom en fermant la fenêtre, essayer de l'intercepter afin d'aviser le serveur
+	- Améliorer la présentation et les explications de la fenêtre initiale et de la fenêtre des paramètres
+	- Calculer le nombre de colonnes de la liste des participants par salle à partir de la largeur d'écran disponible
+*/
+
+// Début du javascript ---------------------------------------------------------
+	var url = "";
+	var famille = "";
+	var pw = "";
+	var part = "";
+	var code = "";
+	var salle = "";
+	var api;
+	var objSend;
+	var objRec;
+	var aSend = "";
+	var aRec = "";
+
+	var table; // à transférer
+
+	var avail_h = 0;
+	var avail_w = 0;
+	var videotop_h = 20;
+	var videobot_h = 0;
+	var videobot_w = 0;
+
+function init() {
+//	Initialization
+	url = "multiroom-test2.php";
+	famille = "ducharme";
+
+//	Créer table pour le serveur ------------- à transférer
+	table = {
+		listeSalles : ["Bloutte","Salon","Cuisine","Salle a manger"],
+		listeSallesCode : ["Bloutte","Salon","Cuisine","Salle a manger"],
+		listePartsNom : ["clement","micheline","emilie","bernard","rosalie"],
+		listePartsSalle : ["Absent","Absent","Absent","Absent","Absent"]
+	}
+	file = {
+		famille : famille,
+		pw : 'therese',
+		table : table
+	}
+
+//	Calcul des différentes hauteurs et largeurs
+	avail_h = screen.availHeight;
+	avail_w = screen.availWidth;
+	videobot_h = avail_h - videotop_h;
+	videobot_w = avail_w;
+	document.getElementById('fen_front').style.height = avail_h + "px";
+	document.getElementById('fen_front').style.width = avail_w + "px";
+	document.getElementById('fen_parm').style.height = avail_h + "px";
+	document.getElementById('fen_parm').style.width = avail_w + "px";
+	document.getElementById('fen_meet').style.height = avail_h + "px";
+	document.getElementById('fen_meet').style.width = avail_w + "px";
+	document.getElementById('videotop').style.height = videotop_h + "px";
+	document.getElementById('videotop').style.width = avail_w + "px";
+	document.getElementById('videobot').style.height = videobot_h + "px";
+	document.getElementById('videobot').style.width = avail_w + "px";
+}
+
+function start() {
+//	À déplacer dans sa propre page
+
+//	Appel au serveur
+	code = "start";
+	objSend = {
+		"famille" : file.famille,
+		"pw" : file.pw,
+		"part" : "",
+		"code" : code,
+		"file" : file
+	}
+	toServer();
+}
+
+function valider() {
+//	Vérifications pour entrer dans MultiRoom, et enregistrement si pas d'erreur
+
+//	Obtenir le nom du participant et le mot de passe
+	part = document.getElementById('part').value;
+	pw = document.getElementById('pw').value;
+
+//	Appel au serveur
+	code = "register";
+	salle = "Aucune";
+	objSend = {
+		"famille" : famille,
+		"pw" : pw,
+		"part" : part,
+		"code" : code,
+		"salle" : salle
+	}
+	toServer();
+}
+
+function validerPost() {
+//	Vérifications pour entrer dans MultiRoom - Au retour du serveur
+
+//	Indiquer le message d'erreur, et terminer s'il y a lieu
+	var a = "";
+	if ( objRec.err == 1 ) {
+		a = "Nom incorrect";
+	} else if ( objRec.err == 2 ) {
+		a = "Mot de passe incorrect";
+	} else if ( objRec.err == 3 ) {
+		a = "Nom et mot de passe incorrects";
+	}
+	document.getElementById('errmsg').innerHTML = a;
+	if ( a != "" ) { return; }
+
+//	Transférer les salles dans la liste déroulante ("drop-down") dans la fenêtre des paramètres
+	var v;
+	var option = "";
+	for (v of objRec.table.listeSalles) {
+		option = document.createElement("option");
+		option.text = v;
+		document.getElementById('join_parm').appendChild(option);
+	}
+
+//	Aller à la fenêtre des paramètres
+	gotoParm();
+
+//	Afficher les salles et les participants
+	showMap();
+}
+
+function join() {
+//	Joindre une salle
+
+//	Si déjà dans une salle, on commence par la fermer (sans appel au serveur)
+	if ( salle != 'Aucune' ) {
+		api.dispose();
+		salle = "Aucune";
+	}
+
+//	Obtenir le nom de la salle à partir d'une liste déroulante ---------------- utiliser la valeur dans listeSallesCode
+	salle = document.getElementById('join_parm').value;
+	document.getElementById('join_parm').value = "";
+
+//	Appel au serveur
+	code = "join";
+	objSend = {
+		"famille" : famille,
+		"pw" : pw,
+		"part" : part,
+		"code" : code,
+		"salle" : salle
+	}
+	toServer();
+}
+
+function joinPost() {
+//	Joindre une salle - Retour du serveur
+
+//	Joindre
+	const domain = 'meet.jit.si';
+	const options = { roomName: salle,
+		userInfo: {displayName: part},
+		parentNode: document.getElementById("meet"),
+		width: videobot_w, height: videobot_h
+	};
+	api = new JitsiMeetExternalAPI(domain, options);
+	api.addEventListener('videoConferenceLeft', leave);
+
+//	Aller à la fenêtre vidéo
+	gotoVideo();
+}
+
+function leave() {
+//	Quitter une salle, soit par bouton ou en "raccrochant" dans la salle
+
+//	Effacer api
+	api.dispose();
+	salle = "Aucune";
+
+//	Aller à la fenêtre des paramètres
+	gotoParm();
+
+//	Appel au serveur
+	code = "leave";
+	objSend = {
+		"famille" : famille,
+		"pw" : pw,
+		"part" : part,
+		"code" : code
+	}
+	toServer();
+}
+
+function leavePost() {
+//	Quitter une salle - Au retour du serveur
+
+//	Afficher les salles et les participants
+	showMap();
+}
+
+function refresh() {
+//	Rafraîchir la liste des salles et des participants
+
+//	Appel au serveur
+	code = "refresh";
+	objSend = {
+		"famille" : famille,
+		"pw" : pw,
+		"part" : part,
+		"code" : code
+	}
+	toServer();
+}
+
+function refreshPost() {
+//	Rafraîchir la liste des salles et des participants - Au retour du serveur
+
+//	Afficher les salles et les participants
+	showMap();
+}
+
+function gotoVideo() {
+//	Aller à la fenêtre vidéo
+	document.getElementById("fen_parm").style.display = "none";
+	document.getElementById("fen_meet").style.display = "block";
+
+//	S'ajuster en haut à gauche
+	window.scrollTo(0, 0);
+
+//	Pas d'appel au serveur
+}
+
+function gotoParm() {
+//	Aller à la fenêtre des paramètres
+
+	document.getElementById("fen_front").style.display = "none";
+	document.getElementById("fen_parm").style.display = "block";
+	document.getElementById("fen_meet").style.display = "none";
+	if ( salle == "Aucune" ) {
+		document.getElementById("gotoVideo").disabled = true;
+	} else {
+		document.getElementById("gotoVideo").disabled = false;
+	}
+
+//	S'ajuster en haut à gauche
+	window.scrollTo(0, 0);
+
+//	Rafraîchir la liste des salles et des participants
+	refresh();
+}
+
+function quit() {
+//	Quitter MultiRoom
+
+//	Avoir aussi un "on quit page" pour envoyer l'information au serveur - À AJOUTER PLUS TARD ?????????????????
+
+//	Demander confirmation ???????????????????????????????????????????????????????
+
+//	Si déjà dans une salle, on commence par la fermer (sans appel au serveur)
+	if ( salle != 'Aucune' ) {
+		api.dispose();
+		salle = "Aucune";
+	}
+
+//	Appel au serveur
+	code = "quit";
+	salle = "Absent";
+	objSend = {
+		"famille" : famille,
+		"pw" : pw,
+		"part" : part,
+		"code" : code
+	}
+	toServer();
+}
+
+function quitPost() {
+//	Quitter MultiRoom - Au retour du serveur
+
+//	Faire un "reload" de MultiRoom
+	window.location.reload();
+}
+
+function showMap() {
+//	Générer la liste des participants par salle
+
+	var ncol = 2;  // Nombre de colonnes dans la table ***************** éventuellement à déterminer à partir de avail_w
+	var nc = 0;
+	var i = 0;
+	var npart = objRec.table.listePartsSalle.length;
+	var a = "LISTE DES " + npart + " PARTICIPANTS PAR SALLE";
+	a = a + "<table>";
+	
+//	Boucle majeure sur les salles
+	for ( s of objRec.table.listeSalles.concat("Aucune","Absent") ) {
+		nc = nc + 1;
+		if ( nc == 1 ) {
+			a = a + "<tr>";
+		}
+		a = a + "<td class='td'>";
+		// Entête de cellule
+		if ( s == "Aucune" ) {
+			a = a + "<b>Dans aucune salle</b>";
+		} else if ( s == "Absent" ) {
+			a = a + "<b>Absents</b>";
+		} else {
+			a = a + "<b>Salle " + s + "</b>";
+		}
+
+//		Boucle mineure sur les participants, et inclure les participants dans la salle donnée
+		for (i=0; i<npart; i++) {
+			if ( s == objRec.table.listePartsSalle[i] ) { a = a + "<br>" + objRec.table.listePartsNom[i]; }
+		}
+//		Fin de la boucle mineure
+		a = a + "</td>";
+		if ( nc == ncol ) {
+			a = a + "</tr>";
+			nc = 0;
+		}
+	}
+//	Fin de la boucle majeure
+
+	a = a + "</table>";
+
+//	Mettre le rapport à l'écran
+	document.getElementById('listePartBySalle').innerHTML = a;	
+}
+
+//	-------------- Appel au serveur (toServer) et traitement du retour (fromServer) ---------------------------
+
+function toServer() {
+//	Préparer la requête au serveur et envoi
+
+	aSend = JSON.stringify(objSend);
+	get(url).then(function(aRecParm) {
+		aRec = aRecParm;
+		fromServer();
+	}, function(error) {
+		console.error("Failed!", error);
+	})
+}
+
+function fromServer() {
+//	Réception de la réponse du serveur et branchement au bon retour
+
+	if ( aRec.substr(0,1) == "<" ) {
+		console.log("Erreur PHP, aRec = " + aRec);
+	} else {
+		objRec = JSON.parse(aRec);
+		console.log("Pour le code " + code + ", le serveur retourne err = " + objRec.err);
+	}
+	
+	if ( code == "register" ) {
+		validerPost();
+	} else if ( code == "join" ) {
+		joinPost();
+	} else if ( code == "leave" ) {
+		leavePost();
+	} else if ( code == "refresh" ) {
+		refreshPost();
+	} else if ( code == "quit" ) {
+		quitPost();
+	} else if ( code == "start" ) {			// Pour l'administrateur - À transférer dans une page différente
+
+	} else if ( code == "stop" ) {			// Pour l'administrateur - À transférer dans une page différente
+
+	} else {
+
+	}
+}
+
+function get(url) {
+  // Return a new promise.
+  
+  return new Promise(function(resolve, reject) {
+    // Do the usual XHR stuff
+    var req = new XMLHttpRequest();
+    req.open("GET", url + "?q=" + aSend);
+
+    req.onload = function() {
+      // This is called even on 404 etc, so check the status
+      if ( req.readyState == 4 && req.status == 200 ) {
+        // Resolve the promise with the response text
+        resolve(req.response);
+      }
+      else {
+        // Otherwise reject with the status text which will hopefully be a meaningful error
+        reject(Error(req.statusText));
+      }
+    };
+
+    // Handle network errors
+    req.onerror = function() {
+      reject(Error("Network Error"));
+    };
+
+    // Make the request
+    req.send();
+  });
+}
+
+function test() {
+//	alert("Fonction vide");
+	var tab = ["a","b","c"];
+	for ( t of tab.concat("d","e") ) {
+		alert(t);
+	}
+	
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+
+	<div id='fen_front'><!-- Fenêtre d'entrée dans MultiRoom -->
+		<p>Nom du participant (sans accents) : <input id='part' value='' style='width:250px'/></p><p/>
+		<p>Mot de passe (sans accents) : <input id='pw' value='' style='width:250px'/></p><p/>
+		<p id='errmsg'></p>
+		<input id='valider' type='button' value='Valider' onclick='valider()' /><p/>
+		<input type='button' value='Test' onclick='test()' /><p/>
+		<input type='button' value='Piton spécial Start' onclick='start()' /><p/>
+		<input type='button' value='Piton spécial Stop' onclick='stop()' /><p/>
+	</div>
+
+	<div id='fen_parm' style='display:none'><!-- Fenêtre des paramètres -->
+		<input id='gotoVideo' type='button' value='Aller à la fenêtre vidéo' onclick='gotoVideo()' /></p/>
+		<input type='button' value='Joindre la salle : ' onclick='join()' />
+			<select id='join_parm' style='width:250px' ></select><p/>
+		<input type='button' value='Quitter la salle' onclick='leave()' /><p/>
+		<input type='button' value='Rafraîchir la liste des participants par salle' onclick='refresh()' /><p/>
+		<input type='button' value='Quitter MultiRoom' onclick='quit()' /><p/>
+		<div id='listePartBySalle'></div>
+	</div>
+
+	<div id='fen_meet' style='display:none'><!-- Fenêtre vidéo -->
+		<div id='videotop'>
+			<input id='gotoParm' type='button' value='Aller à la fenêtre des paramètres' onclick='gotoParm()' />
+		</div>
+		<div id='videobot'>
+			<div id='meet'></div>
+		</div>
+	</div>
+
+</body>
+</html>

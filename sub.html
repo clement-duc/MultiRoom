@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>Sub</title>
+<style>
+</style>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+
+<script>
+
+// Début du javascript ---------------------------------------------------------
+
+function init() {
+//	Initialization
+	document.title = "Titre";
+	processParm();
+	alert("Fenêtre sub ouverte avec paramètres :");
+	alert(parmName[0] + "=" + parmVal[0] + "/");
+	alert(parmName[1] + "=" + parmVal[1] + "/");
+}
+
+function sub_leave() {
+	window.close();
+	opener.leave();
+}
+
+function processParm() {
+	var p = window.location.href;
+	var ip = p.indexOf("?");
+	p = decodeURI(p.substr(ip+1));
+    p = p.split("&");
+	var i = 0;
+	parmName=[""];
+	parmVal=[""];
+	for (i=0; i<p.length; i++) {
+		ip = p[i].indexOf("=");
+		if ( i > 0 ) { parmName.push; parmVal.push; }
+		parmName[i] = p[i].substr(0,ip);
+		parmVal[i] = p[i].substr(ip+1);
+	}
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+
+	<div>Ici la fenêtre sub</div>
+	window.close;
+	<input type='button' value='Quitter la salle' onclick='sub_leave()' />
+	
+
+</body>
+</html>

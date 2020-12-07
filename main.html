@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>Main</title>
+<style>
+</style>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+
+<script>
+
+// Début du javascript ---------------------------------------------------------
+	var neww;
+
+function init() {
+//	Initialization
+
+}
+
+function join() {
+//	parm = encodeURI("parm1=Clément&parm2=Émilie");
+//	neww = window.open("sub.html" + "?" + parm);
+	neww = window.open("https://meet.jit.si/Bloutte");
+}
+
+function statut() {
+	alert("statut is called");
+//	alert(neww.location.href);
+	alert(neww.closed);
+}
+
+function leave() {
+	alert("leave is called");
+//	neww.close;
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+
+	<div>
+		<input type='button' value='Joindre' onclick='join()' /><p/>
+		<input type='button' value='Obtenir statut' onclick='statut()' /><p/>
+		<input type='button' value='Quitter' onclick='leave()' />
+<!--			<select id='leave_parm' style='width:250px' ></select><p/>    -->
+	</div>
+
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>MultiRoom-2020/12/06</title>
+<style>
+.td { border: 1px solid black; padding: 10px; vertical-align: top; }
+</style>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+<script src="multiroom-test3.js?1"></script>
+
+<script>
+/*
+	Cette version utilise du php sur serveur pour gérer les salles et les participants. Reste à faire :
+	- Transférer le plus possible de javascript dans un fichier .js
+	- Transférer la commande "start" du superviseur dans une page différente et gérer l'entrée des données (listes dans un fichier séparé?)
+	- Modifier la structure des données
+	- Remplacer le mot de passe par famille par des mots de passe par participant
+	- Ajouter la validation (php) du nom du participant et de son mot de passe, à l'enregistrement
+	- Utiliser le code de salle (plutôt que le nom de la salle) pour ouvrir jit.si
+	- Pour quitter MultiRoom, demander une confirmation
+	- Si le participant quitte MultiRoom en fermant la fenêtre, essayer de l'intercepter afin d'aviser le serveur
+	- Améliorer la présentation et les explications de la fenêtre initiale et de la fenêtre des paramètres
+	- Calculer le nombre de colonnes de la liste des participants par salle à partir de la largeur d'écran disponible
+*/
+
+// Début du javascript ---------------------------------------------------------
+	var url = "";
+	var code = "";
+	var famille = "";
+	var part = "";
+	var pw = "";
+	var salle = "";
+	var api;
+	var objSend;
+	var objRec;
+	var aSend = "";
+	var aRec = "";
+
+	var avail_h = 0;
+	var avail_w = 0;
+	var videotop_h = 20;
+	var videobot_h = 0;
+	var videobot_w = 0;
+
+function init() {
+//	Initialization
+	url = "multiroom-test3.php";
+
+//	Calcul des différentes hauteurs et largeurs
+	avail_h = screen.availHeight;
+	avail_w = screen.availWidth;
+	videobot_h = avail_h - videotop_h;
+	videobot_w = avail_w;
+	document.getElementById('fen_front').style.height = avail_h + "px";
+	document.getElementById('fen_front').style.width = avail_w + "px";
+	document.getElementById('fen_parm').style.height = avail_h + "px";
+	document.getElementById('fen_parm').style.width = avail_w + "px";
+	document.getElementById('fen_meet').style.height = avail_h + "px";
+	document.getElementById('fen_meet').style.width = avail_w + "px";
+	document.getElementById('videotop').style.height = videotop_h + "px";
+	document.getElementById('videotop').style.width = avail_w + "px";
+	document.getElementById('videobot').style.height = videobot_h + "px";
+	document.getElementById('videobot').style.width = avail_w + "px";
+}
+
+function test() {
+//	alert("Fonction vide");
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+
+	<div id='fen_front'><!-- Fenêtre d'entrée dans MultiRoom -->
+		<p>Famille : <input id='famille' value='Ducharme' style='width:250px'/></p><p/>
+		<p>Participant : <input id='part' value='' style='width:250px'/></p><p/>
+		<p>Mot de passe : <input id='pw' value='' style='width:250px'/></p><p/>
+		<p id='errmsgFront'></p>
+		<input id='valider' type='button' value='Valider' onclick='valider()' /><p/>
+	</div>
+
+	<div id='fen_parm' style='display:none'><!-- Fenêtre des paramètres -->
+		<input id='gotoVideo' type='button' value='Aller à la fenêtre vidéo' onclick='gotoVideo()' /></p/>
+		<p id='errmsgParm'></p>
+		<input type='button' value='Joindre la salle : ' onclick='join()' />
+			<select id='join_parm' style='width:250px' ></select><p/>
+		<input type='button' value='Quitter la salle' onclick='leave()' /><p/>
+		<input type='button' value='Rafraîchir la liste des participants par salle' onclick='refresh()' /><p/>
+		<input type='button' value='Quitter MultiRoom' onclick='quit()' /><p/>
+		<div id='listePartBySalle'></div>
+	</div>
+
+	<div id='fen_meet' style='display:none'><!-- Fenêtre vidéo -->
+		<div id='videotop'>
+			<input id='gotoParm' type='button' value='Aller à la fenêtre des paramètres' onclick='gotoParm()' />
+		</div>
+		<div id='videobot'>
+			<div id='meet'></div>
+		</div>
+	</div>
+
+	<input type='button' value='Test' onclick='test()' /><p/>
+
+</body>
+</html>

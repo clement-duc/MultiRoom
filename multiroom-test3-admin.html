@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head Cache-Control:no-cache,no-store>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+    <title>MultiRoomAdmin-2020/12/05</title>
+<style></style>
+
+<script src='https://meet.jit.si/external_api.js'></script>
+<script src="multiroom-test3.js?4"></script>
+
+<script>
+// Début du javascript ---------------------------------------------------------
+
+	var url = "";
+	var code = "";
+	var famille = "";
+	var objSend;
+	var objRec;
+	var aSend = "";
+	var aRec = "";
+	var table;
+
+function init() {
+//	Initialization
+	url = "multiroom-test3.php";
+	famille = "ducharme";
+	document.getElementById("listes").addEventListener("input", function () { autoExpand("listes"); });
+}
+
+function test() {
+//	alert("Fonction vide");
+}
+
+function autoExpand(id) {
+	var elem = document.getElementById(id);
+
+	// Reset field height
+	elem.style.height = 'inherit';
+
+	// Get the computed styles for the element
+	var computed = window.getComputedStyle(elem);
+
+	// Calculate the height
+	var height = parseInt(computed.getPropertyValue('border-top-width'), 10)
+	             + parseInt(computed.getPropertyValue('padding-top'), 10)
+	             + elem.scrollHeight
+	             + parseInt(computed.getPropertyValue('padding-bottom'), 10)
+	             + parseInt(computed.getPropertyValue('border-bottom-width'), 10);
+
+	elem.style.height = height + 'px';
+}
+
+// Fin du javascript ---------------------------------------------------------
+</script>
+
+</head>
+
+<body onload='init()'>
+	<h3>Identification</h3>
+	<p>Famille : <input id='famille' value='Ducharme' style='width:250px'/></p><p/>
+
+	<h3>START</h3>
+	<p>Après avoir copié la liste des salles et des participants ci-dessous, cliquer sur 'Start' pour créer la "famille" sur le serveur</p>
+	<input type='button' value='Start' onclick='start()' /><b><span id='startmsg' style='color:red;'></span></b><p/>
+	<label for="listes">Zone des listes (salles et participants) : </label>
+	<textarea id='listes' name='listes' style='max-height: 30vh; width: 100%;'>Bloutte, BloutteRoom
+Salon, SalonRoom
+Cuisine, CuisineRoom
+Salle a manger, SalleAMangerRoom
+---
+clement, clementpw, Clement Ducharme
+micheline, michelinepw, Micheline Plamondon
+emilie, emiliepw, Emilie Ducharme
+bernard, bernardpw, Bernard Ducharme
+rosalie, rosaliepw, Rosalie Ducharme</textarea><br>
+	
+	<h3>STOP</h3>
+	<p>Pour arrêter la "famille" sur le serveur, cliquer sur 'Stop' (pas de listes à fournir)</p>
+	<input type='button' value='Stop' onclick='stop()' /><b><span id='stopmsg' style='color:red;'></span></b><p/>
+
+	<input type='button' value='Test' style='display:none' onclick='test()' /><p/>
+</body>
+</html>
